@@ -1,0 +1,33 @@
+name: winupdate-cache
+
+services:
+  winupdate-cache:
+    image: ameer1234567890/winupdate-cache:latest
+    container_name: winupdate-cache
+    restart: unless-stopped
+    ports:
+      # Cache endpoint: Windows clients reach this via DNS redirection (must be port 80)
+      - "${PROXY_PORT:-80}:8080"
+      # Web UI
+      - "${UI_PORT:-8081}:8081"
+    environment:
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}   # change this! (escape a literal $ as $$)
+      MAX_CACHE_SIZE_GB: ${MAX_CACHE_SIZE_GB:-200}
+      CACHE_MAX_AGE_DAYS: ${CACHE_MAX_AGE_DAYS:-90}  # remove objects not requested for this long
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-}              # empty = built-in Windows Update domains
+      SESSION_HOURS: ${SESSION_HOURS:-168}
+      TZ: ${TZ:-UTC}
+      RUST_LOG: ${RUST_LOG:-info}
+    # IMPORTANT: the cache must resolve the real Microsoft servers, NOT your
+    # redirecting DNS. Use public resolvers (or any resolver without the override).
+    dns:
+      - ${UPSTREAM_DNS_1:-1.1.1.1}
+      - ${UPSTREAM_DNS_2:-9.9.9.9}
+    volumes:
+      # Named volume by default. Set DATA_DIR=/path/on/host for a bind mount
+      # (that directory must be writable by uid 10001).
+      - ${DATA_DIR:-winupdate-data}:/data
+
+volumes:
+  winupdate-data:

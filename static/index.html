@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>winupdate-cache</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f8f80'/%3E%3Cpath d='M16 7v12m0 0l-5-5m5 5l5-5M9 24h14' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script>
+(function(){var t=null;try{t=localStorage.getItem('wuc-theme')}catch(e){}
+if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+document.documentElement.dataset.theme=t})();
+</script>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#eef2f4;--panel:#fff;--sunk:#f4f7f8;--text:#142026;--muted:#5d7079;--line:#dbe3e7;
+  --cache:#0f8f80;--cache-soft:#d6f0eb;--net:#d9822b;--accent:#0f8f80;--danger:#d64545;--warn-bg:#fff4dc;--warn-fg:#7a4b00;
+  --shadow:0 1px 2px rgba(20,32,38,.06);color-scheme:light}
+[data-theme=dark]{
+  --bg:#0c1519;--panel:#111e24;--sunk:#0d181d;--text:#e4edf0;--muted:#8aa0a9;--line:#22343c;
+  --cache:#2cc5b0;--cache-soft:#12332f;--net:#f0a04b;--accent:#2cc5b0;--danger:#ff7676;--warn-bg:#33270c;--warn-fg:#f4c978;
+  --shadow:none;color-scheme:dark}
+html{background:var(--bg)}
+body{margin:0;color:var(--text);font:14px/1.5 "Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+h2{font-size:16px}
+.muted{color:var(--muted)}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+.bar{max-width:1120px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:20px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:15px}
+.logo{width:28px;height:28px;border-radius:8px;background:var(--cache);display:grid;place-items:center}
+nav{display:flex;gap:4px;flex:1}
+nav a{padding:6px 12px;border-radius:8px;color:var(--muted);text-decoration:none;font-weight:500}
+nav a:hover{background:var(--sunk)}
+nav a.on{background:var(--cache-soft);color:var(--cache)}
+.tools{display:flex;align-items:center;gap:12px}
+
+/* dark mode switch */
+.theme-switch{position:relative;width:52px;height:28px;border-radius:14px;border:1px solid var(--line);background:var(--sunk);cursor:pointer;padding:0}
+.theme-switch .knob{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;transition:transform .18s ease}
+.theme-switch[aria-checked=true] .knob{transform:translateX(24px)}
+.theme-switch svg{width:13px;height:13px;stroke:var(--text);fill:none;stroke-width:2;stroke-linecap:round}
+.theme-switch .moon{display:none}
+.theme-switch[aria-checked=true] .moon{display:block}
+.theme-switch[aria-checked=true] .sun{display:none}
+
+main{max-width:1120px;margin:0 auto;padding:22px 20px 60px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:18px}
+.stack{display:grid;gap:16px}
+.banner{background:var(--warn-bg);color:var(--warn-fg);border-radius:10px;padding:10px 14px;margin-bottom:16px}
+
+/* dashboard */
+.lead{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px}
+.lead-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+.saved{font-size:38px;font-weight:650;letter-spacing:-.02em;line-height:1.1;color:var(--cache)}
+.legend{display:flex;gap:14px;color:var(--muted);font-size:13px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+svg.chart{width:100%;height:auto;display:block}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{fill:var(--muted);font-size:11px}
+.chart .bc{fill:var(--cache)}.chart .bn{fill:var(--net)}
+.facts{display:grid;gap:14px;align-content:start}
+.fact b{display:block;font-size:22px;font-weight:620;letter-spacing:-.01em}
+.fact span{color:var(--muted);font-size:13px}
+.meter{height:8px;border-radius:4px;background:var(--sunk);border:1px solid var(--line);overflow:hidden;margin:6px 0 4px}
+.meter div{height:100%;background:var(--cache)}
+.cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:16px}
+.table-wrap{overflow-x:auto;margin:10px -18px -6px;padding:0 18px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:12.5px;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+td.wrap{white-space:normal;word-break:break-all;min-width:200px}
+.path{color:var(--muted)}
+.nm{background:transparent;border-color:transparent!important;min-width:180px;padding:5px 8px!important}
+.nm:hover,.nm:focus{background:var(--sunk);border-color:var(--line)!important}
+.empty{color:var(--muted);padding:18px 0;text-align:center}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}
+.b-hit{background:var(--cache-soft);color:var(--cache)}
+.b-miss{background:color-mix(in srgb,var(--net) 20%,transparent);color:var(--net)}
+.b-bypass{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+
+/* controls */
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--sunk)}
+.btn.primary{background:var(--cache);border-color:var(--cache);color:#fff}
+[data-theme=dark] .btn.primary{color:#04201c}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--danger)}
+.btn.sm{padding:3px 10px;font-size:13px}
+input[type=text],input[type=password],input:not([type]){border:1px solid var(--line);background:var(--sunk);border-radius:8px;padding:8px 10px;width:100%}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.grow{flex:1;min-width:180px}
+
+/* setup */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:2px 9px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+.tabs{display:flex;gap:4px;margin:12px 0 8px}
+.tabs button{border:0;background:none;padding:5px 12px;border-radius:8px;cursor:pointer;color:var(--muted);font-weight:500}
+.tabs button.on{background:var(--cache-soft);color:var(--cache)}
+pre{margin:0;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto;font:12.5px/1.55 ui-monospace,Consolas,monospace}
+ol.steps{margin:8px 0 0;padding-left:20px;display:grid;gap:6px}
+.note{color:var(--muted);font-size:13px;margin:10px 0 0}
+
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.login-card{width:100%;max-width:370px;display:grid;gap:14px;padding:26px}
+.login-card label{display:grid;gap:5px;font-weight:500}
+.err{color:var(--danger);min-height:20px;font-size:13px}
+.login-foot{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px}
+
+@media (max-width:860px){.lead,.cols{grid-template-columns:1fr}.bar{flex-wrap:wrap;gap:10px}nav{order:3;flex-basis:100%;overflow-x:auto}}
+@media (prefers-reduced-motion:reduce){.theme-switch .knob{transition:none}}
+</style>
+</head>
+<body>
+
+<div id="login" class="login hidden">
+  <form id="loginForm" class="card login-card">
+    <div class="brand"><span class="logo"><svg width="16" height="16" viewBox="0 0 32 32"><path d="M16 5v16m0 0l-6-6m6 6l6-6M7 27h18" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>winupdate-cache</div>
+    <label>Username<input id="u" autocomplete="username" required></label>
+    <label>Password<input id="p" type="password" autocomplete="current-password" required></label>
+    <div id="loginErr" class="err" role="alert"></div>
+    <button class="btn primary" type="submit">Sign in</button>
+    <div class="login-foot"><span>Dark mode</span><button type="button" class="theme-switch" role="switch" aria-label="Dark mode" aria-checked="false"><span class="knob"><svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg><svg class="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></span></button></div>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header><div class="bar">
+    <div class="brand"><span class="logo"><svg width="16" height="16" viewBox="0 0 32 32"><path d="M16 5v16m0 0l-6-6m6 6l6-6M7 27h18" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>winupdate-cache</div>
+    <nav><a href="#dashboard" data-v="dashboard">Dashboard</a><a href="#devices" data-v="devices">Devices</a><a href="#cache" data-v="cache">Cached files</a><a href="#setup" data-v="setup">DNS setup</a></nav>
+    <div class="tools">
+      <button class="theme-switch" role="switch" aria-label="Dark mode" aria-checked="false"><span class="knob"><svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg><svg class="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></span></button>
+      <button class="btn sm" id="logout">Sign out</button>
+    </div>
+  </div></header>
+
+  <main>
+    <div id="pwBanner" class="banner hidden">You are still using the default password. Set <b>ADMIN_PASSWORD</b> in your docker compose file and restart the container.</div>
+
+    <section id="v-dashboard" class="stack hidden">
+      <div class="lead">
+        <div class="card">
+          <div class="lead-head">
+            <div><div class="saved" id="sSaved">0 B</div><div class="muted">kept off your internet line</div></div>
+            <div class="legend"><span><i style="background:var(--cache)"></i>From cache</span><span><i style="background:var(--net)"></i>From internet</span></div>
+          </div>
+          <svg id="chart" class="chart" viewBox="0 0 900 200" role="img" aria-label="Traffic over the last 24 hours"></svg>
+          <div class="muted" style="font-size:12.5px">Last 24 hours, 15-minute intervals</div>
+        </div>
+        <div class="card facts">
+          <div class="fact"><b id="sRate">–</b><span>of requests answered from cache</span></div>
+          <div class="fact"><b id="sNet">0 B</b><span>downloaded from the internet</span></div>
+          <div class="fact"><b id="sObj">0</b><span id="sObjSub">cached files</span></div>
+          <div class="fact"><div class="row between"><b id="sUsed">0 B</b><span id="sMax"></span></div><div class="meter"><div id="sBar" style="width:0"></div></div><span>cache disk usage</span></div>
+        </div>
+      </div>
+      <div class="cols">
+        <div class="card"><h2>Devices</h2>
+          <div class="table-wrap"><table><thead><tr><th>Address</th><th class="r">Requests</th><th class="r">Data</th><th class="r">Last seen</th></tr></thead><tbody id="tClients"></tbody></table></div></div>
+        <div class="card"><h2>Recent requests</h2>
+          <div class="table-wrap"><table><thead><tr><th>Time</th><th>Device</th><th>File</th><th>Result</th><th class="r">Size</th></tr></thead><tbody id="tRecent"></tbody></table></div></div>
+      </div>
+    </section>
+
+    <section id="v-devices" class="stack hidden">
+      <div class="card">
+        <h2>Devices</h2>
+        <p class="muted" style="margin:4px 0 0">Give each IP address a name you will recognise. Click a name to edit it; it saves when you press Enter or leave the field. Names show up on the dashboard too.</p>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>IP address</th><th class="r">Requests</th><th class="r">Data</th><th class="r">Last seen</th><th></th></tr></thead><tbody id="tDevices"></tbody></table></div>
+      </div>
+      <div class="card">
+        <h3>Name a device that hasn't connected yet</h3>
+        <div class="row" style="margin-top:10px"><input id="addIp" placeholder="IP address, e.g. 192.168.1.50" style="max-width:240px"><input id="addName" placeholder="Name" maxlength="64" style="max-width:240px"><button class="btn primary" id="addDev">Save</button></div>
+        <div class="err" id="devErr" role="alert" style="margin-top:6px"></div>
+      </div>
+    </section>
+
+    <section id="v-cache" class="stack hidden">
+      <div class="card">
+        <div class="row between"><h2>Cached files</h2>
+          <div class="row"><input id="q" class="grow" placeholder="Filter by host or path" style="width:260px"><button class="btn danger" id="purge">Clear cache</button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>File</th><th class="r">Size</th><th class="r">Served</th><th class="r">Last used</th><th></th></tr></thead><tbody id="tObjects"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="v-setup" class="stack hidden">
+      <div class="card">
+        <h2>Point your DNS at the cache</h2>
+        <p class="muted" style="margin:4px 0 12px">Make these names resolve to this server on your network. Everything else keeps resolving normally.</p>
+        <div class="row"><label class="grow" style="display:grid;gap:5px;font-weight:500;max-width:320px">Cache server IP address<input id="ip" placeholder="192.168.1.10"></label></div>
+        <div class="chips" id="domains"></div>
+        <div class="tabs" id="snipTabs"><button data-k="dnsmasq" class="on">dnsmasq / Pi-hole</button><button data-k="unbound">Unbound</button><button data-k="windows">Windows DNS Server</button></div>
+        <pre id="snip"></pre>
+        <div class="row" style="margin-top:10px"><button class="btn" id="copy">Copy</button><span class="muted" id="copied"></span></div>
+        <p class="note" id="snipNote"></p>
+      </div>
+      <div class="card">
+        <h2>Check that it works</h2>
+        <ol class="steps">
+          <li>On a Windows PC run <code>nslookup download.windowsupdate.com</code>. It should answer with the address above.</li>
+          <li>Start a Windows Update check, or install an update.</li>
+          <li>Watch <a href="#dashboard" style="color:var(--cache)">Dashboard</a>: the first device fills the cache, the next ones are served from it.</li>
+        </ol>
+        <p class="note">Only the download traffic (plain HTTP) is cached. Update metadata and licensing use HTTPS and always go straight to Microsoft. The cache itself must use a DNS server without these overrides (see <code>UPSTREAM_DNS_1</code> in docker compose).</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmtB(n){if(!n)return'0 B';const u=['B','KB','MB','GB','TB','PB'];const i=Math.min(u.length-1,Math.floor(Math.log(n)/Math.log(1024)));const v=n/Math.pow(1024,i);return(i===0||v>=100?v.toFixed(0):v.toFixed(1))+' '+u[i]}
+function ago(t){const s=Math.max(0,Math.floor(Date.now()/1000-t));if(s<5)return'just now';if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';return Math.floor(s/86400)+' d ago'}
+const hms=t=>new Date(t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+let authed=false,view='dashboard',cfg=null,names={};
+const dev=ip=>names[ip]?`${esc(names[ip])} <span class="path">${esc(ip)}</span>`:esc(ip);
+
+/* theme */
+function setTheme(t){document.documentElement.dataset.theme=t;try{localStorage.setItem('wuc-theme',t)}catch(e){}
+  $$('.theme-switch').forEach(b=>b.setAttribute('aria-checked',t==='dark'))}
+$$('.theme-switch').forEach(b=>b.onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+setTheme(document.documentElement.dataset.theme);
+
+/* api */
+async function api(path,opt){
+  const r=await fetch(path,Object.assign({credentials:'same-origin',headers:{'Content-Type':'application/json'}},opt));
+  if(r.status===401){showLogin();throw new Error('unauthorized')}
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||r.statusText);
+  return j}
+
+/* login */
+function showLogin(){authed=false;$('#app').classList.add('hidden');$('#login').classList.remove('hidden');$('#u').focus()}
+$('#loginForm').onsubmit=async e=>{e.preventDefault();$('#loginErr').textContent='';
+  const r=await fetch('/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('#u').value,password:$('#p').value})});
+  if(!r.ok){const j=await r.json().catch(()=>({}));$('#loginErr').textContent=j.error||'Sign-in failed.';return}
+  $('#p').value='';start()};
+$('#logout').onclick=async()=>{try{await api('/api/logout',{method:'POST'})}catch(e){}showLogin()};
+
+async function start(){
+  try{await api('/api/me')}catch(e){return}
+  authed=true;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');
+  cfg=await api('/api/config');
+  $('#pwBanner').classList.toggle('hidden',!cfg.default_password);
+  route()}
+
+/* routing */
+function route(){view=['dashboard','devices','cache','setup'].includes(location.hash.slice(1))?location.hash.slice(1):'dashboard';
+  $$('section[id^=v-]').forEach(s=>s.classList.toggle('hidden',s.id!=='v-'+view));
+  $$('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===view));
+  refresh();if(view==='setup')renderSetup()}
+addEventListener('hashchange',()=>authed&&route());
+function refresh(){if(!authed)return;if(view==='dashboard')loadStats().catch(()=>{});if(view==='devices')loadDevices().catch(()=>{});if(view==='cache')loadObjects().catch(()=>{})}
+setInterval(()=>{if(!document.hidden&&view!=='setup'&&!(document.activeElement&&document.activeElement.tagName==='INPUT'))refresh()},3000);
+
+/* dashboard */
+async function loadStats(){
+  const d=await api('/api/stats'),s=d.stats,t=s.totals,c=d.cache,reqs=t.hits+t.misses+t.bypass;
+  names=d.names||{};
+  $('#sSaved').textContent=fmtB(t.bytes_cache);
+  $('#sRate').textContent=reqs?Math.round(t.hits/reqs*100)+'%':'–';
+  $('#sNet').textContent=fmtB(t.bytes_upstream);
+  $('#sObj').textContent=c.objects.toLocaleString();
+  $('#sObjSub').textContent=c.downloading?`cached files, ${c.downloading} downloading now`:'cached files';
+  $('#sUsed').textContent=fmtB(c.bytes);$('#sMax').textContent='of '+fmtB(c.max_bytes);
+  $('#sBar').style.width=Math.min(100,c.max_bytes?c.bytes/c.max_bytes*100:0)+'%';
+  drawChart(s.buckets);
+  $('#tClients').innerHTML=s.clients.length?s.clients.map(x=>`<tr><td title="${esc(x.ip)}">${esc(names[x.ip]||x.ip)}</td><td class="r">${x.requests}</td><td class="r">${fmtB(x.bytes)}</td><td class="r">${ago(x.last_seen)}</td></tr>`).join(''):`<tr><td colspan="4" class="empty">No devices yet. Once DNS points here, they show up.</td></tr>`;
+  $('#tRecent').innerHTML=s.recent.length?s.recent.map(x=>`<tr><td>${hms(x.t)}</td><td>${dev(x.client)}</td><td class="wrap" title="${esc(x.host+x.path)}">${esc(x.host)}<span class="path">${esc(x.path.length>60?x.path.slice(0,28)+'…'+x.path.slice(-28):x.path)}</span></td><td><span class="badge b-${x.kind}">${x.kind==='hit'?'Cache':x.kind==='miss'?'Filling':'Direct'}</span></td><td class="r">${x.bytes?fmtB(x.bytes):'–'}</td></tr>`).join(''):`<tr><td colspan="5" class="empty">No requests yet.</td></tr>`}
+
+function drawChart(buckets){
+  const W=900,H=200,pl=52,pb=22,pt=8,n=96,step=900,end=Math.floor(Date.now()/1000/step)*step;
+  const m=new Map(buckets.map(b=>[b.t,b])),rows=[];
+  for(let i=n-1;i>=0;i--){const t=end-i*step;rows.push(m.get(t)||{t,cache:0,upstream:0})}
+  const max=Math.max(1,...rows.map(r=>r.cache+r.upstream)),ch=H-pt-pb,bw=(W-pl)/n;let g='';
+  for(let i=0;i<=4;i++){const y=pt+ch*(1-i/4);g+=`<line class="grid" x1="${pl}" x2="${W}" y1="${y}" y2="${y}"/><text class="axis" x="${pl-8}" y="${y+4}" text-anchor="end">${i?fmtB(max*i/4):'0'}</text>`}
+  rows.forEach((r,i)=>{const x=pl+i*bw+1,hn=ch*r.upstream/max,hc=ch*r.cache/max,b=H-pb;
+    g+=`<g><title>${new Date(r.t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}: ${fmtB(r.cache)} from cache, ${fmtB(r.upstream)} from internet</title><rect class="bn" x="${x}" y="${b-hn}" width="${bw-2}" height="${hn}"/><rect class="bc" x="${x}" y="${b-hn-hc}" width="${bw-2}" height="${hc}"/><rect x="${x}" y="${pt}" width="${bw-2}" height="${ch}" fill="transparent"/></g>`;
+    if(i%12===0)g+=`<text class="axis" x="${x}" y="${H-5}">${new Date(r.t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</text>`});
+  $('#chart').innerHTML=g}
+
+/* cached files */
+let qTimer;
+$('#q').oninput=()=>{clearTimeout(qTimer);qTimer=setTimeout(()=>loadObjects().catch(()=>{}),250)};
+async function loadObjects(){
+  const d=await api('/api/objects?limit=200&q='+encodeURIComponent($('#q').value.trim()));
+  $('#tObjects').innerHTML=d.objects.length?d.objects.map(o=>`<tr><td class="wrap">${esc(o.host)}<span class="path">${esc(o.path)}</span></td><td class="r">${fmtB(o.size)}</td><td class="r">${o.hits}×</td><td class="r">${ago(o.last_access)}</td><td class="r"><button class="btn sm danger" data-k="${esc(o.key)}">Remove</button></td></tr>`).join(''):`<tr><td colspan="5" class="empty">Nothing cached${$('#q').value?' matches this filter':' yet'}.</td></tr>`}
+$('#tObjects').onclick=async e=>{const k=e.target.dataset&&e.target.dataset.k;if(!k)return;
+  await api('/api/objects/'+k,{method:'DELETE'});loadObjects()};
+$('#purge').onclick=async()=>{if(!confirm('Remove every cached file? Devices will download them again from Microsoft.'))return;
+  await api('/api/purge',{method:'POST'});loadObjects()};
+
+/* devices */
+async function loadDevices(){
+  const d=await api('/api/devices');
+  $('#tDevices').innerHTML=d.devices.length?d.devices.map(x=>`<tr><td><input class="nm" data-ip="${esc(x.ip)}" value="${esc(x.name)}" placeholder="Add a name" maxlength="64" aria-label="Name for ${esc(x.ip)}"></td><td>${esc(x.ip)}</td><td class="r">${x.requests}</td><td class="r">${fmtB(x.bytes)}</td><td class="r">${x.last_seen?ago(x.last_seen):'never'}</td><td class="r">${x.name?`<button class="btn sm" data-rm="${esc(x.ip)}">Clear name</button>`:''}</td></tr>`).join(''):`<tr><td colspan="6" class="empty">No devices yet. Once DNS points here they show up, or add one below.</td></tr>`}
+async function saveName(ip,name){$('#devErr').textContent='';
+  try{await api('/api/devices/'+encodeURIComponent(ip),{method:'PUT',body:JSON.stringify({name})});return true}
+  catch(e){if(e.message!=='unauthorized')$('#devErr').textContent=e.message;return false}}
+$('#tDevices').onchange=async e=>{if(!e.target.classList.contains('nm'))return;await saveName(e.target.dataset.ip,e.target.value);loadDevices()};
+$('#tDevices').onkeydown=e=>{if(e.key==='Enter'&&e.target.classList.contains('nm'))e.target.blur()};
+$('#tDevices').onclick=async e=>{const ip=e.target.dataset&&e.target.dataset.rm;if(!ip)return;
+  await api('/api/devices/'+encodeURIComponent(ip),{method:'DELETE'});loadDevices()};
+$('#addDev').onclick=async()=>{if(await saveName($('#addIp').value,$('#addName').value)){$('#addIp').value='';$('#addName').value='';loadDevices()}};
+
+/* setup */
+let snipKind='dnsmasq';
+const snips={
+  dnsmasq:(ip,d)=>d.map(x=>`address=/${x}/${ip}`).join('\n'),
+  unbound:(ip,d)=>d.map(x=>`local-zone: "${x}." redirect\nlocal-data: "${x}. 300 IN A ${ip}"`).join('\n'),
+  windows:(ip,d)=>`$ip = "${ip}"\nforeach ($d in @(${d.map(x=>`"${x}"`).join(', ')})) {\n  Add-DnsServerPrimaryZone -Name $d -ZoneFile "$d.dns"\n  Add-DnsServerResourceRecordA -ZoneName $d -Name "@" -IPv4Address $ip\n  Add-DnsServerResourceRecordA -ZoneName $d -Name "*" -IPv4Address $ip\n}`};
+const notes={
+  dnsmasq:'Save as a file in /etc/dnsmasq.d/ (Pi-hole: also enable reading that directory in its settings) and restart the DNS service. Each line also covers every subdomain.',
+  unbound:'Add to the server: section of unbound.conf and reload Unbound. "redirect" also covers every subdomain.',
+  windows:'Run in an elevated PowerShell on your Windows DNS server. The wildcard record covers subdomains such as tlu.dl.delivery.mp.microsoft.com.'};
+function renderSetup(){
+  const ipEl=$('#ip');if(!ipEl.value){let v='';try{v=localStorage.getItem('wuc-ip')||''}catch(e){}
+    ipEl.value=v||(/^\d+\.\d+\.\d+\.\d+$/.test(location.hostname)?location.hostname:'')}
+  const ip=ipEl.value.trim()||'192.168.1.10',d=cfg?cfg.domains:[];
+  $('#domains').innerHTML=d.map(x=>`<span class="chip">${esc(x)}</span>`).join('');
+  $('#snip').textContent=snips[snipKind](ip,d);$('#snipNote').textContent=notes[snipKind];
+  $$('#snipTabs button').forEach(b=>b.classList.toggle('on',b.dataset.k===snipKind))}
+$('#ip').oninput=()=>{try{localStorage.setItem('wuc-ip',$('#ip').value.trim())}catch(e){}renderSetup()};
+$('#snipTabs').onclick=e=>{if(e.target.dataset.k){snipKind=e.target.dataset.k;renderSetup()}};
+$('#copy').onclick=()=>{const t=$('#snip').textContent;
+  const done=()=>{$('#copied').textContent='Copied';setTimeout(()=>$('#copied').textContent='',1800)};
+  if(navigator.clipboard&&isSecureContext)navigator.clipboard.writeText(t).then(done);
+  else{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();done()}};
+
+start();
+</script>
+</body>
+</html>
