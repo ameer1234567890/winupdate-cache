@@ -20,10 +20,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
  && useradd --system --uid 10001 --home-dir /data wuc \
  && mkdir /data && chown wuc /data
 COPY --from=build /app/target/release/winupdate-cache /usr/local/bin/winupdate-cache
-USER wuc
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 ENV DATA_DIR=/data
 EXPOSE 8080 8081
 VOLUME /data
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD ["/usr/local/bin/winupdate-cache", "healthcheck"]
-ENTRYPOINT ["/usr/local/bin/winupdate-cache"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/usr/local/bin/winupdate-cache"]

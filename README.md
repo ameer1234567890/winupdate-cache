@@ -52,7 +52,7 @@ detected and answered with HTTP 508.
 | `ALLOWED_HOSTS` | the three domains above | Comma-separated host suffixes the cache will serve |
 | `SESSION_HOURS` | `168` | Login session lifetime |
 | `PROXY_PORT` / `UI_PORT` | `80` / `8081` | Published host ports |
-| `DATA_DIR` | named volume | Volume name or host path (host path must be writable by uid 10001) |
+| `DATA_DIR` | named volume | Volume name or host path (ownership is fixed automatically on start) |
 | `CACHE_KEY_INCLUDES_QUERY` | `false` | By default the query string (expiring tokens) is ignored for the cache key |
 
 ## How it works

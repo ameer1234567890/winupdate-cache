@@ -26,7 +26,7 @@ services:
       - ${UPSTREAM_DNS_2:-9.9.9.9}
     volumes:
       # Named volume by default. Set DATA_DIR=/path/on/host for a bind mount
-      # (that directory must be writable by uid 10001).
+      # (ownership is fixed automatically on start).
       - ${DATA_DIR:-winupdate-data}:/data
 
 volumes:
