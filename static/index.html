@@ -224,7 +224,6 @@ function ago(t){const s=Math.max(0,Math.floor(Date.now()/1000-t));if(s<5)return'
 const hms=t=>new Date(t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
 let authed=false,view='dashboard',cfg=null,names={};
-const dev=ip=>names[ip]?`${esc(names[ip])} <span class="path">${esc(ip)}</span>`:esc(ip);
 
 /* theme */
 function setTheme(t){document.documentElement.dataset.theme=t;try{localStorage.setItem('wuc-theme',t)}catch(e){}
@@ -277,7 +276,7 @@ async function loadStats(){
   $('#sBar').style.width=Math.min(100,c.max_bytes?c.bytes/c.max_bytes*100:0)+'%';
   drawChart(s.buckets);
   $('#tClients').innerHTML=s.clients.length?s.clients.map(x=>`<tr><td title="${esc(x.ip)}">${esc(names[x.ip]||x.ip)}</td><td class="r">${x.requests}</td><td class="r">${fmtB(x.bytes)}</td><td class="r">${ago(x.last_seen)}</td></tr>`).join(''):`<tr><td colspan="4" class="empty">No devices yet. Once DNS points here, they show up.</td></tr>`;
-  $('#tRecent').innerHTML=s.recent.length?s.recent.map(x=>`<tr><td>${hms(x.t)}</td><td>${dev(x.client)}</td><td class="wrap" title="${esc(x.host+x.path)}">${esc(x.host)}<span class="path">${esc(x.path.length>60?x.path.slice(0,28)+'…'+x.path.slice(-28):x.path)}</span></td><td><span class="badge b-${x.kind}">${x.kind==='hit'?'Cache':x.kind==='miss'?'Filling':'Direct'}</span></td><td class="r">${x.bytes?fmtB(x.bytes):'–'}</td></tr>`).join(''):`<tr><td colspan="5" class="empty">No requests yet.</td></tr>`}
+  $('#tRecent').innerHTML=s.recent.length?s.recent.map(x=>`<tr><td>${hms(x.t)}</td><td title="${esc(x.client)}">${esc(names[x.client]||x.client)}</td><td class="wrap" title="${esc(x.host+x.path)}">${esc(x.host)}<span class="path">${esc(x.path.length>60?x.path.slice(0,28)+'…'+x.path.slice(-28):x.path)}</span></td><td><span class="badge b-${x.kind}">${x.kind==='hit'?'Cache':x.kind==='miss'?'Filling':'Direct'}</span></td><td class="r">${x.bytes?fmtB(x.bytes):'–'}</td></tr>`).join(''):`<tr><td colspan="5" class="empty">No requests yet.</td></tr>`}
 
 function drawChart(buckets){
   const W=900,H=200,pl=52,pb=22,pt=8,n=96,step=900,end=Math.floor(Date.now()/1000/step)*step;
