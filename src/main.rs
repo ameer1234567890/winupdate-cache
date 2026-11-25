@@ -1,5 +1,6 @@
 mod config;
 mod names;
+mod settings;
 mod proxy;
 mod stats;
 mod store;
@@ -22,6 +23,7 @@ pub struct App {
     pub store: store::Store,
     pub stats: stats::Stats,
     pub names: names::Names,
+    pub settings: settings::SettingsStore,
     pub http: reqwest::Client,
     pub sessions: Mutex<HashMap<String, u64>>,
     pub login_fails: Mutex<VecDeque<u64>>,
@@ -58,6 +60,7 @@ async fn main() {
     });
     let stats = stats::Stats::load(cfg.data_dir.join("stats.json"));
     let names = names::Names::load(cfg.data_dir.join("devices.json"));
+    let settings = settings::SettingsStore::load(cfg.data_dir.join("settings.json"));
     let http = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::limited(5))
         .connect_timeout(Duration::from_secs(10))
@@ -78,6 +81,7 @@ async fn main() {
         store,
         stats,
         names,
+        settings,
         http,
         sessions: Mutex::new(HashMap::new()),
         login_fails: Mutex::new(VecDeque::new()),

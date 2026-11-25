@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use crate::{store::now, App};
+use crate::{settings::Settings, store::now, App};
 
 const INDEX: &str = include_str!("../static/index.html");
 
@@ -23,6 +23,8 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/api/stats", get(stats))
         .route("/api/config", get(get_config))
         .route("/api/devices", get(devices))
+        .route("/api/requests", get(requests))
+        .route("/api/settings", get(get_settings).put(put_settings))
         .route("/api/devices/:ip", put(put_device).delete(delete_device))
         .route("/api/objects", get(objects))
         .route("/api/objects/:key", delete(delete_object))
@@ -147,7 +149,7 @@ async fn me(State(app): State<Arc<App>>) -> Json<Value> {
 async fn stats(State(app): State<Arc<App>>) -> Json<Value> {
     let (objects, bytes, downloading) = app.store.summary();
     Json(json!({
-        "stats": app.stats.snapshot(),
+        "stats": app.stats.snapshot(app.settings.get().dashboard_limit),
         "names": app.names.all(),
         "cache": {
             "objects": objects,
@@ -167,7 +169,22 @@ async fn get_config(State(app): State<Arc<App>>) -> Json<Value> {
 }
 
 /// Devices seen so far plus any named ones that haven't connected yet.
-async fn devices(State(app): State<Arc<App>>) -> Json<Value> {
+#[derive(Deserialize)]
+struct PageQuery {
+    q: Option<String>,
+    page: Option<usize>,
+}
+
+/// (page used, start index, end index)
+fn page_bounds(total: usize, page: usize, size: usize) -> (usize, usize, usize) {
+    let size = size.max(1);
+    let pages = ((total + size - 1) / size).max(1);
+    let page = page.clamp(1, pages);
+    let start = (page - 1) * size;
+    (page, start, (start + size).min(total))
+}
+
+async fn devices(State(app): State<Arc<App>>, Query(q): Query<PageQuery>) -> Json<Value> {
     let names = app.names.all();
     let mut rows: Vec<Value> = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -191,7 +208,33 @@ async fn devices(State(app): State<Arc<App>>) -> Json<Value> {
             a["ip"].as_str().cmp(&b["ip"].as_str())
         })
     });
-    Json(json!({ "devices": rows }))
+    let size = app.settings.get().page_size;
+    let total = rows.len();
+    let (page, start, end) = page_bounds(total, q.page.unwrap_or(1), size);
+    Json(json!({ "devices": rows[start..end].to_vec(), "total": total, "page": page, "page_size": size }))
+}
+
+async fn requests(State(app): State<Arc<App>>, Query(q): Query<PageQuery>) -> Json<Value> {
+    let size = app.settings.get().page_size;
+    let (rows, total, page) = app.stats.requests(q.page.unwrap_or(1), size);
+    Json(json!({
+        "requests": rows,
+        "total": total,
+        "page": page,
+        "page_size": size,
+        "names": app.names.all(),
+    }))
+}
+
+async fn get_settings(State(app): State<Arc<App>>) -> Json<Settings> {
+    Json(app.settings.get())
+}
+
+async fn put_settings(State(app): State<Arc<App>>, Json(req): Json<Settings>) -> Response {
+    match app.settings.set(req) {
+        Ok(()) => Json(json!({ "ok": true })).into_response(),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))).into_response(),
+    }
 }
 
 #[derive(Deserialize)]
@@ -213,17 +256,12 @@ async fn delete_device(State(app): State<Arc<App>>, Path(ip): Path<String>) -> R
     }
 }
 
-#[derive(Deserialize)]
-struct ObjQuery {
-    q: Option<String>,
-    limit: Option<usize>,
-}
-
-async fn objects(State(app): State<Arc<App>>, Query(q): Query<ObjQuery>) -> Json<Value> {
-    let list = app
-        .store
-        .list(q.q.as_deref().unwrap_or(""), q.limit.unwrap_or(200).min(1000));
-    Json(json!({ "objects": list }))
+async fn objects(State(app): State<Arc<App>>, Query(q): Query<PageQuery>) -> Json<Value> {
+    let size = app.settings.get().page_size;
+    let (list, total, page) =
+        app.store
+            .list_page(q.q.as_deref().unwrap_or(""), q.page.unwrap_or(1), size);
+    Json(json!({ "objects": list, "total": total, "page": page, "page_size": size }))
 }
 
 async fn delete_object(State(app): State<Arc<App>>, Path(key): Path<String>) -> Response {

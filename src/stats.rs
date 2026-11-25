@@ -11,7 +11,7 @@ use crate::store::now;
 
 const BUCKET_SECS: u64 = 900; // 15 minutes
 const MAX_BUCKETS: usize = 96; // 24 hours
-const MAX_LOG: usize = 200;
+const MAX_LOG: usize = 1000;
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -62,6 +62,8 @@ pub struct Snapshot {
     pub buckets: Vec<Bucket>,
     pub clients: Vec<ClientRow>,
     pub recent: Vec<LogEntry>,
+    pub clients_total: usize,
+    pub recent_total: usize,
     pub uptime: u64,
 }
 
@@ -180,16 +182,30 @@ impl Stats {
         self.inner.lock().unwrap().clients.values().cloned().collect()
     }
 
-    pub fn snapshot(&self) -> Snapshot {
+    /// One page of the request log, newest first. Returns (rows, total, page used).
+    pub fn requests(&self, page: usize, size: usize) -> (Vec<LogEntry>, usize, usize) {
+        let i = self.inner.lock().unwrap();
+        let total = i.recent.len();
+        let size = size.max(1);
+        let pages = ((total + size - 1) / size).max(1);
+        let page = page.clamp(1, pages);
+        let rows = i.recent.iter().skip((page - 1) * size).take(size).cloned().collect();
+        (rows, total, page)
+    }
+
+    pub fn snapshot(&self, limit: usize) -> Snapshot {
         let i = self.inner.lock().unwrap();
         let mut clients: Vec<ClientRow> = i.clients.values().cloned().collect();
         clients.sort_by(|a, b| b.last_seen.cmp(&a.last_seen));
-        clients.truncate(50);
+        let clients_total = clients.len();
+        clients.truncate(limit);
         Snapshot {
             totals: i.totals.clone(),
             buckets: i.buckets.iter().cloned().collect(),
             clients,
-            recent: i.recent.iter().take(100).cloned().collect(),
+            recent: i.recent.iter().take(limit).cloned().collect(),
+            clients_total,
+            recent_total: i.recent.len(),
             uptime: self.started.elapsed().as_secs(),
         }
     }

@@ -203,17 +203,23 @@ impl Store {
         (all.len(), bytes)
     }
 
-    pub fn list(&self, q: &str, limit: usize) -> Vec<Meta> {
+    /// One page of cached objects, most recently used first.
+    /// Returns (objects, total matching, page used).
+    pub fn list_page(&self, q: &str, page: usize, size: usize) -> (Vec<Meta>, usize, usize) {
         let q = q.to_lowercase();
         let idx = self.index.lock().unwrap();
-        let mut v: Vec<Meta> = idx
+        let mut v: Vec<&Meta> = idx
             .values()
             .filter(|m| q.is_empty() || m.host.contains(&q) || m.path.to_lowercase().contains(&q))
-            .cloned()
             .collect();
         v.sort_by(|a, b| b.last_access.cmp(&a.last_access));
-        v.truncate(limit);
-        v
+        let total = v.len();
+        let size = size.max(1);
+        let pages = ((total + size - 1) / size).max(1);
+        let page = page.clamp(1, pages);
+        let start = (page - 1) * size;
+        let end = (start + size).min(total);
+        (v[start..end].iter().map(|m| (*m).clone()).collect(), total, page)
     }
 
     /// (objects, bytes, downloads in progress)

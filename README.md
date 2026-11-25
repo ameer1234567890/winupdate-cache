@@ -5,7 +5,7 @@ Point your DNS at it and every Windows device on your network downloads each upd
 from the internet only once.
 
 * Single container, started with Docker Compose
-* Web UI with dashboard, a devices page for naming IP addresses, cached-file browser, DNS snippets, and a dark mode switch
+* Web UI (with a Config tab for list sizes and page sizes) with dashboard, a devices page for naming IP addresses, cached-file browser, DNS snippets, and a dark mode switch
 * Login with the username/password you set in `docker-compose.yml`
 * Range-request aware (BITS / Delivery Optimization), concurrent clients share one download
 * LRU eviction by size, plus expiry of files nobody has requested for a while
